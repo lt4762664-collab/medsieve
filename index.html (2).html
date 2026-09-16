@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- 1. SỬA LỖI CHỮ BÉ: Dòng này giúp tự động phóng to chữ và giao diện vừa vặn với mọi màn hình điện thoại -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MedSieve - Tra cứu triệu chứng y tế</title>
+    
+    <!-- 2. SỬA LỖI ẨN ĐƯỜNG LINK: Cấu hình bắt buộc để ẩn thanh địa chỉ khi mở App trên điện thoại -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MedSieve">
+    
+    <!-- 3. SỬA LỖI LOGO CHỮ G: Ép điện thoại phải lấy biểu tượng chữ thập y tế làm logo ứng dụng ngoài màn hình -->
+    <link rel="icon" type="image/png" href="https://flaticon.com">
+    <link rel="apple-touch-icon" href="https://flaticon.com">
+    
+    <style>
+        /* Tối ưu hóa phông nền cho thiết bị di động */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f4f9f4; -webkit-text-size-adjust: 100%; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 5px solid #2c7a7b; margin-top: 10px; }
+        h2 { color: #2c7a7b; text-align: center; font-size: 20px; margin-top: 5px; }
+        p { font-size: 14px; line-height: 1.5; }
+        
+        /* Phóng to ô tìm kiếm và nút bấm trên điện thoại để dễ tương tác bấm ngón tay */
+        .search-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        input { width: auto; padding: 14px; font-size: 16px; border: 1px solid #cbd5e0; border-radius: 6px; outline: none; -webkit-appearance: none; }
+        input:focus { border-color: #2c7a7b; box-shadow: 0 0 0 2px rgba(44,122,123,0.1); }
+        button { padding: 14px; font-size: 16px; cursor: pointer; background-color: #2c7a7b; color: white; border: none; border-radius: 6px; font-weight: bold; -webkit-appearance: none; }
+        button:hover { background-color: #234e52; }
+        
+        /* Kết quả hiển thị rõ ràng trên mobile */
+        #result { margin-top: 20px; padding: 15px; border-left: 5px solid #2c7a7b; display: none; background: #edf2f7; border-radius: 6px; }
+        .disease-item { background: white; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.hospital-btn { display: block; margin-top: 15px; padding: 14px; background-color: #e53e3e; color: white; text-decoration: none; font-weight: bold; border-radius: 6px; text-align: center; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Hệ thống Tra cứu Triệu chứng Y tế</h2>
+        <p style="text-align: center; color: #4a5568; margin-bottom: 5px;">Nhập một hoặc nhiều triệu chứng lâm sàng:</p>
+        <p style="text-align: center; color: #718096; font-size: 12px; margin-top: 0;">(Ví dụ: sốt, ho, đau bụng - Cách nhau bởi dấu phẩy)</p>
+        
+        <div class="search-container">
+            <input type="text" id="symptomInput" placeholder="Nhập các biểu hiện tại đây...">
+            <button onclick="searchDisease()">Tiến hành phân tích</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Cơ sở dữ liệu mẫu 20 bệnh lý lâm sàng cốt lõi
+        const dataBinh = [
+            { name: "Cúm mùa", symptoms: ["sốt", "ho", "đau họng", "sổ mũi", "mệt mỏi"] },
+            { name: "Viêm phế quản cấp", symptoms: ["ho kéo dài", "có đờm", "khó thở", "đau ngực nhẹ"] },
+            { name: "Viêm xoang", symptoms: ["đau đầu", "ngạt mũi", "chảy mũi đặc", "đau vùng mặt"] },
+            { name: "Viêm họng hạt", symptoms: ["đau họng", "nuốt vướng", "ho khan", "ngứa họng"] },
+            { name: "Hen suyễn", symptoms: ["khó thở", "thở khò khè", "tức ngực", "ho về đêm"] },
+            { name: "Viêm dạ dày", symptoms: ["đau bụng", "ợ chua", "buồn nôn", "đầy bụng", "đau thượng vị"] },
+            { name: "Ngộ độc thực phẩm", symptoms: ["đau bụng", "tiêu chảy", "buồn nôn", "nôn mửa", "sốt nhẹ"] },
+            { name: "Trào ngược dạ dày", symptoms: ["ợ nóng", "ợ chua", "đau ngực", "khó nuốt", "đắng miệng"] },
+            { name: "Viêm đại tràng", symptoms: ["đau bụng dưới", "mót rặn", "tiêu chảy", "đầy hơi"] },
+            { name: "Sốt xuất huyết", symptoms: ["sốt cao", "đau cơ", "phát ban", "nhức đầu", "đau hốc mắt"] },
+            { name: "Thủy đậu", symptoms: ["sốt nhẹ", "mệt mỏi", "nổi mụn nước", "ngứa da"] },
+            { name: "Sốt siêu vi", symptoms: ["sốt cao liên tục", "đau đầu", "đau nhức người", "mệt mỏi"] },
+            { name: "Dị ứng thời tiết", symptoms: ["ngứa da", "mẩn đỏ", "hắt hơi", "sổ mũi"] },
+            { name: "Mề đay cấp tính", symptoms: ["sưng nề da", "ngứa dữ dội", "nổi sẩn cục"] },
+            { name: "Zona thần kinh", symptoms: ["đau rát da", "nổi mụn nước chùm", "đau nhức thần kinh"] },
+{ name: "Suy nhược cơ thể", symptoms: ["mệt mỏi", "chóng mặt", "mất ngủ", "chán ăn"] },
+            { name: "Rối loạn tiền đình", symptoms: ["chóng mặt", "hoa mắt", "mất thăng bằng", "buồn nôn"] },
+            { name: "Thiếu máu não", symptoms: ["đau đầu", "hoa mắt", "chóng mặt", "tê bì chân tay"] },
+            { name: "Đau mắt đỏ", symptoms: ["mắt đỏ", "ngứa mắt", "chảy nước mắt", "ghèn mắt"] },
+            { name: "Nhiệt miệng", symptoms: ["đau rát miệng", "vết loét trắng", "sưng lợi"] }
+        ];
+
+        function searchDisease() {
+            const inputRaw = document.getElementById("symptomInput").value.toLowerCase().trim();
+            const resultDiv = document.getElementById("result");
+            
+            if (inputRaw === "") {
+                alert("Vui lòng nhập triệu chứng để tra cứu!");
+                return;
+            }
+
+            const userSymptoms = inputRaw.split(/[,，\s]+/).filter(s => s.length > 0);
+            let results = [];
+
+            dataBinh.forEach(disease => {
+                let matchCount = 0;
+                userSymptoms.forEach(uSymptom => {
+                    let found = disease.symptoms.find(dSymptom => dSymptom.includes(uSymptom) || uSymptom.includes(dSymptom));
+                    if (found) matchCount++;
+                });
+
+                if (matchCount > 0) {
+                    results.push({ name: disease.name, allSymptoms: disease.symptoms, matchCount: matchCount });
+                }
+            });
+
+            results.sort((a, b) => b.matchCount - a.matchCount);
+
+            resultDiv.style.display = "block";
+            if (results.length > 0) {
+                let html = "<h3 style='color:#2c7a7b; margin-top:0; font-size:16px;'>📊 Kết quả phân tích sơ bộ:</h3>";
+                
+                results.forEach(r => {
+                    html += `
+                        <div class="disease-item">
+                            <strong style="color:#2c7a7b; font-size:15px;">🩺 Định hướng: ${r.name}</strong><br>
+                            <span style='font-size:12px; color:#2f855a; font-weight:bold;'>Độ tương thích: Khớp ${r.matchCount} triệu chứng</span><br>
+                            <span style='font-size:13px; color:#718096;'>Các biểu hiện: ${r.allSymptoms.join(", ")}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <a href="https://google.com" target="_blank" class="hospital-btn">
+                        🗺️ ĐỊNH VỊ BỆNH VIỆN GẦN NHẤT
+                    </a>
+                    <p style='color:#e53e3e; font-size:11px; font-weight:bold; margin-top:12px; border-top: 1px solid #cbd5e0; padding-top:8px;'>
+* Lưu ý: Kết quả mang tính chất sàng lọc mô phỏng cuộc thi KHKT, không thay thế chẩn đoán y khoa chuyên nghiệp.
+                    </p>
+                `;
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `
+                    <p style="font-size:14px;">Không tìm thấy bệnh lý phù hợp. Bạn vui lòng mở bản đồ bên dưới để tìm cơ sở y tế thăm khám.</p>
+                    <a href="https://google.com" target="_blank" class="hospital-btn">🗺️ TÌM BỆNH VIỆN GẦN NHẤT</a>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
